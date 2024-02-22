@@ -1,3 +1,5 @@
+#uploadfroms3todynamolambda.py
+
 This code reads data from a CSV file stored in Amazon S3 and then adds it to a DynamoDB table. Here's a step-by-step breakdown:
 
 1. Setting Up:
