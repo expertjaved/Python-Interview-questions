@@ -17,11 +17,12 @@ def lambda_handler(event, context):
         data = response['Body'].read().decode("utf-8")
 
         # Splitting data into lines
-        csv_rows = csv.reader(data.splitlines())
+        csv_rows = csv.reader(data.splitlines(), delimiter='\t')
 
         # Extracting header and data rows
         header = next(csv_rows)
         data_rows = list(csv_rows)
+        
 
         # Creating DynamoDB table
         create_dynamodb_table(header, data_rows)
@@ -36,10 +37,10 @@ def create_dynamodb_table(header, data_rows):
     table = dynamodb.create_table(
         TableName=table_name,
         KeySchema=[
-            {'AttributeName': 'RowID', 'KeyType': 'HASH'},  # Adjust the key schema based on your CSV file structure
+            {'AttributeName': 'Row ID', 'KeyType': 'HASH'},
         ],
         AttributeDefinitions=[
-            {'AttributeName': 'RowID', 'AttributeType': 'N'},
+            {'AttributeName': 'Row ID', 'AttributeType': 'N'},
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 5,
@@ -49,12 +50,17 @@ def create_dynamodb_table(header, data_rows):
 
     # Waiting for the table to be created
     table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
+    #and header.index('Row ID') < len(data_rows)
 
     # Adding data to DynamoDB
+    print("Header Values:", header)
     for row in data_rows:
-        item = {header[i]: row[i] for i in range(len(header))}
-        table.put_item(Item=item)
+        # Ensure 'RowID' is present in the header and has a corresponding value in the row
+        if 'Row ID' in header:
+            item = {'Row ID': int(row[header.index('Row ID')])}
+            item.update({header[i]: row[i] for i in range(len(header)) if i != header.index('Row ID')})
+            table.put_item(Item=item)
+        else:
+            print("Error: 'Row ID' not found in header or missing value in data row.")
 
     print(f"DynamoDB table '{table_name}' created and populated.")
-
-# Ensure that your Lambda execution role has the necessary permissions for S3 and DynamoDB.
