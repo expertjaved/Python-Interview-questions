@@ -1,0 +1,60 @@
+import json
+import csv
+import boto3
+
+s3_client = boto3.client("s3")
+dynamodb = boto3.resource("dynamodb")
+table_name = "YourDynamoDBTableName"
+
+def lambda_handler(event, context):
+    for record in event['Records']:
+        # Extracting information from the S3 event
+        bucket_name = record['s3']['bucket']['name']
+        file_key = record['s3']['object']['key']
+
+        # Reading data from the S3 object
+        response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+        data = response['Body'].read().decode("utf-8")
+
+        # Splitting data into lines
+        csv_rows = csv.reader(data.splitlines())
+
+        # Extracting header and data rows
+        header = next(csv_rows)
+        data_rows = list(csv_rows)
+
+        # Creating DynamoDB table
+        create_dynamodb_table(header, data_rows)
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Processing completed successfully!')
+    }
+
+def create_dynamodb_table(header, data_rows):
+    # Creating DynamoDB table
+    table = dynamodb.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {'AttributeName': 'RowID', 'KeyType': 'HASH'},  # Adjust the key schema based on your CSV file structure
+        ],
+        AttributeDefinitions=[
+            {'AttributeName': 'RowID', 'AttributeType': 'N'},
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 5,
+            'WriteCapacityUnits': 5,
+        }
+    )
+
+    # Waiting for the table to be created
+    table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
+
+    # Adding data to DynamoDB
+    for row in data_rows:
+        item = {header[i]: row[i] for i in range(len(header))}
+        table.put_item(Item=item)
+
+    print(f"DynamoDB table '{table_name}' created and populated.")
+
+# Ensure that your Lambda execution role has the necessary permissions for S3 and DynamoDB.
