@@ -4,7 +4,7 @@ import boto3
 
 s3_client = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
-table_name = "YourDynamoDBTableName"
+table_name = "order"
 
 def lambda_handler(event, context):
     for record in event['Records']:
