@@ -14,3 +14,4 @@ print(unique_list)
 #unique_list = list(set(my_list))
 
 #print(unique_list)
+# understood it 
